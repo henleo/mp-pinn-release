@@ -11,7 +11,9 @@ experiment driver and the figure scripts are written in Python.
 ## Requirements
 
 - Julia 1.12.6 (the version `Manifest.toml` was resolved with), with `julia` on the `PATH`, e.g. installed via [juliaup](https://github.com/JuliaLang/juliaup)
-- Python 3.10
+- Python 3.10 (the pinned packages in `requirements.txt` have no wheels for Python ≥ 3.13; if
+  `python3.10` is not installed, e.g. `uv python install 3.10`, then use `uv venv --python 3.10 .venv`
+  in place of the `python3.10 -m venv .venv` line below)
 - About 110 GB of disk space for the PDEBench data and about 8 GB for the experiment outputs
 - 16 GB RAM is enough for 4 parallel runs (a single run at wave speed b = 7 needs up to about 3.5 GB)
 
@@ -34,6 +36,8 @@ julia --project=. -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
 ```
 
 In every new shell, run `source .venv/bin/activate` in the repository root before the commands below.
+`run_experiments.py` also selects Julia 1.12.6 itself (through juliaup's `JULIAUP_CHANNEL`) and
+warns if a different Julia version runs.
 
 ## Data
 
@@ -48,6 +52,9 @@ python pde/download_pdebench_subset.py advection    # or only the 5 advection fi
 python pde/download_pdebench_subset.py reacdiff     # or only the 16 reaction-diffusion files (about 66 GB)
 ```
 
+An interrupted download can be restarted with the same command: complete files are skipped, and
+the interrupted file is downloaded again from the start (its partial `.part` file is overwritten).
+
 ## Running the experiments
 
 `run_experiments.py` runs every experiment and then every figure and table script:
@@ -59,7 +66,8 @@ python run_experiments.py all --jobs 4 --big-jobs 2
 `--jobs` is the number of Julia processes that run at the same time, and `--big-jobs` is how many of
 them may be memory-heavy b = 7 runs. Every run writes one HDF5 file to `artifacts/`, with its console
 output in a `.runlog` file next to it. Finished runs are skipped, so an interrupted command can simply
-be started again. The whole pipeline takes roughly 100 core-hours, about one to two days with 4
+be started again (on Ctrl-C or `kill`, the driver stops its running Julia processes and removes
+their partial outputs). The whole pipeline takes roughly 100 core-hours, about one to two days with 4
 parallel jobs.
 
 The steps can also be run one at a time, in this order:
@@ -101,8 +109,9 @@ but not the exact numbers.
 
 ## Figures
 
-Each figure script reads the finished runs from `artifacts/` and writes its PDF(s) and a LaTeX table
-with the plotted numbers (`*_table.tex`) next to itself; `run_experiments.py figures` also saves each
+Each figure script reads the finished runs from `artifacts/` (and stops with an error naming the
+`run_experiments.py` step if a run is missing) and writes its PDF(s) and a LaTeX table with the
+plotted numbers (`*_table.tex`) next to itself; `run_experiments.py figures` also saves each
 script's console output as `*.stdout.log`. A single figure can be regenerated with, e.g.
 
 ```bash

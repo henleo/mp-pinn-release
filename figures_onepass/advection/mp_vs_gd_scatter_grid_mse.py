@@ -12,7 +12,7 @@ Only the runs in the plot are read. The run list is taken from the figure script
 follows the figure if the figure's trajectory count changes; the artifact directory is never
 globbed for loading. Other cached runs of the two families (e.g. the solution-grid trajectory 6369
 of Ours) are listed at the end of the output as NOT used and are never opened.
-Unlike the figure script, a missing artifact is an error here (the figure script would train it).
+As in the figure script, a missing artifact is an error.
 
 Checks, each fatal on failure: every artifact's stored attributes 'beta' and 'idx' match the run
 it is loaded for; both methods of a run hold the same ground truth true_u; the grid (the x and t
@@ -65,7 +65,7 @@ def plotted_runs() -> list[tuple[float, int]]:
 
 
 def load(sweep, beta: float, idx: int) -> dict:
-    """The figure's loader, without its train-if-missing fallback; checks the stored run labels."""
+    """The figure's loader; also checks the stored run labels."""
     path = sweep._cache_path(beta, idx)
     if not path.exists():
         raise FileNotFoundError(f"missing artifact {path} (b={beta:g}, idx={idx}); the figure uses this run")

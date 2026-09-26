@@ -22,6 +22,7 @@ also gives the reference for the Gaussian-bump IC of PDEBench's single-trajector
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import h5py
@@ -92,6 +93,14 @@ def _cache_path(nu: float, rho: float, idx: int) -> Path:
     return CACHE_DIR / f"ref_nu{_fmt(nu)}_rho{_fmt(rho)}_idx{idx}.npz"
 
 
+def _save_atomic(p: Path, **arrays) -> None:
+    """Write the cache under a temporary name and rename it, so an interrupted write never leaves
+    a truncated file at the cache path."""
+    tmp = p.with_name(p.stem + ".tmp.npz")
+    np.savez_compressed(tmp, **arrays)
+    os.replace(tmp, p)
+
+
 def reference_solution(nu: float, rho: float, idx: int) -> dict:
     """Cached float64 reference for one dataset trajectory. Returns dict with u_ref (n_t, n_x),
     u_data (the stored trajectory, same shape), x, t."""
@@ -101,7 +110,7 @@ def reference_solution(nu: float, rho: float, idx: int) -> dict:
         return {key: z[key] for key in z.files}
     u_data, x, t = load_dataset_traj(nu, rho, idx)
     u_ref = solve_fisher(u_data[0], nu, rho, t)
-    np.savez_compressed(p, u_ref=u_ref, u_data=u_data, x=x, t=t)
+    _save_atomic(p, u_ref=u_ref, u_data=u_data, x=x, t=t)
     return dict(u_ref=u_ref, u_data=u_data, x=x, t=t)
 
 
@@ -151,7 +160,7 @@ def gaussian_bump_reference(nu: float, rho: float) -> dict:
         return {key: z[key] for key in z.files}
     u0, x = gaussian_bump_ic()
     u_ref = solve_fisher(u0, nu, rho, GAUSS_T, L=GAUSS_L)
-    np.savez_compressed(p, u_ref=u_ref, x=x, t=GAUSS_T)
+    _save_atomic(p, u_ref=u_ref, x=x, t=GAUSS_T)
     return dict(u_ref=u_ref, x=x, t=GAUSS_T)
 
 

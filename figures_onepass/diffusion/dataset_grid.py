@@ -48,12 +48,11 @@ def collect() -> dict[tuple[float, float], list[dict]]:
         for rho in RHOS:
             cell = []
             for idx in IDXS:
-                try:
-                    cell.append(ds_sweep.run_or_load(nu, rho, idx))
-                except FileNotFoundError as e:
-                    print(f"[missing] nu={nu} rho={rho} idx={idx}: {e}")
-            if cell:
-                results[(nu, rho)] = cell
+                path = ds_sweep._cache_path(nu, rho, idx)
+                if not path.exists():
+                    raise FileNotFoundError(f"missing artifact {path}; run: python run_experiments.py diff-ours")
+                cell.append(ds_sweep.load_cached(nu, rho, idx))
+            results[(nu, rho)] = cell
     return results
 
 

@@ -39,15 +39,17 @@ def _idxs_for(beta: float) -> list[int]:
     return idxs(N_TRAJ_PER_BETA)
 
 
-def run_mp(beta: float, idx: int) -> dict:
-    if not mp_sweep._cache_path(beta, idx).exists():
-        mp_sweep.train_one_beta(beta, idx)
+def load_mp(beta: float, idx: int) -> dict:
+    path = mp_sweep._cache_path(beta, idx)
+    if not path.exists():
+        raise FileNotFoundError(f"missing artifact {path}; run: python run_experiments.py adv-ours")
     return mp_sweep.load_cached(beta, idx)
 
 
-def run_gd(beta: float, idx: int) -> dict:
-    if not gd_sweep._cache_path(beta, idx).exists():
-        gd_sweep.train_one_beta(beta, idx)
+def load_gd(beta: float, idx: int) -> dict:
+    path = gd_sweep._cache_path(beta, idx)
+    if not path.exists():
+        raise FileNotFoundError(f"missing artifact {path}; run: python run_experiments.py adv-gd")
     return gd_sweep.load_cached(beta, idx)
 
 
@@ -55,9 +57,9 @@ def collect_results() -> tuple[list[dict], list[dict]]:
     mp_results, gd_results = [], []
     for beta in BETAS:
         for idx in _idxs_for(beta):
-            print(f"[beta={beta} idx={idx}] running MP + controlled baseline...")
-            mp_results.append(run_mp(beta, idx))
-            gd_results.append(run_gd(beta, idx))
+            print(f"[beta={beta} idx={idx}] loading MP + controlled baseline...")
+            mp_results.append(load_mp(beta, idx))
+            gd_results.append(load_gd(beta, idx))
     return mp_results, gd_results
 
 

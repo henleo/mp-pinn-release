@@ -6,7 +6,9 @@ at most `big_jobs` are "big" (the memory-heavy b = 7 runs). A free slot takes a 
 runs wait. Every run writes to a temporary path that is renamed to the artifact only when the
 process exits with 0; its console output goes to `<artifact>.runlog`. Single-threaded BLAS for
 every run (the signs of the LAPACK eigenvectors that define the basis coordinates can depend on
-BLAS threading). A run whose artifact appeared in the meantime is skipped at launch.
+BLAS threading). A run whose artifact appeared in the meantime is skipped at launch. If the
+dispatcher is interrupted (Ctrl-C, or SIGTERM e.g. from `kill <pid>`), it stops the Julia runs it
+started and removes their temporary outputs; finished artifacts are kept, so a restart continues.
 
 The limits can be changed while a batch runs: if `limits_file` exists, it is re-read every few
 seconds as JSON {"jobs": N, "big_jobs": M} (running processes are never stopped; a lower limit
@@ -17,7 +19,10 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
+import signal
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Callable, Sequence
@@ -53,42 +58,62 @@ def run_jobs(todo: Sequence, *, path_for: Callable[[object], Path], command_for:
         tmp = temp_path(path)
         cmd = command_for(item, tmp)
         fh = open(path.with_suffix(".runlog"), "w")
-        fh.write(" ".join(cmd) + "\n")
+        fh.write(shlex.join(cmd) + "\n")
         fh.flush()
         proc = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, env=env, cwd=cwd)
         running.append(dict(item=item, proc=proc, fh=fh, tmp=tmp, path=path, start=time.time()))
 
-    while big_queue or small_queue or running:
-        for job in [j for j in running if j["proc"].poll() is not None]:
-            running.remove(job)
+    # SIGTERM ends Python through SystemExit, so the finally-block below also runs then
+    # (Ctrl-C raises KeyboardInterrupt).
+    if signal.getsignal(signal.SIGTERM) is signal.SIG_DFL:
+        signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(128 + signum))
+    try:
+        while big_queue or small_queue or running:
+            for job in [j for j in running if j["proc"].poll() is not None]:
+                running.remove(job)
+                job["fh"].close()
+                if job["proc"].returncode == 0 and job["tmp"].exists():
+                    job["tmp"].rename(job["path"])
+                    status = "ok"
+                else:
+                    failed.append(job["item"])
+                    status = f"FAILED (exit {job['proc'].returncode}, see {job['path'].with_suffix('.runlog')})"
+                n_done += 1
+                print(f"[{n_done}/{len(todo)}] {label_for(job['item'])}: {status} ({time.time() - job['start']:.0f} s)",
+                      flush=True)
+            new_limits = read_limits(jobs, big_jobs)
+            if new_limits != (jobs, big_jobs):
+                jobs, big_jobs = new_limits
+                print(f"limits now jobs={jobs}, big-jobs={big_jobs}", flush=True)
+            while len(running) < jobs:
+                n_big = sum(is_big(j["item"]) for j in running)
+                if big_queue and n_big < big_jobs:
+                    item = big_queue.pop(0)
+                elif small_queue:
+                    item = small_queue.pop(0)
+                else:
+                    break
+                if path_for(item).exists():
+                    n_skipped += 1
+                    print(f"skip {label_for(item)}: artifact already exists", flush=True)
+                    continue
+                launch(item)
+            time.sleep(2)
+    finally:
+        # Only non-empty when interrupted: stop the Julia runs started here, remove their partial outputs.
+        for job in running:
+            job["proc"].terminate()
+        for job in running:
+            try:
+                job["proc"].wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                job["proc"].kill()
+                job["proc"].wait()
             job["fh"].close()
-            if job["proc"].returncode == 0 and job["tmp"].exists():
-                job["tmp"].rename(job["path"])
-                status = "ok"
-            else:
-                failed.append(job["item"])
-                status = f"FAILED (exit {job['proc'].returncode}, see {job['path'].with_suffix('.runlog')})"
-            n_done += 1
-            print(f"[{n_done}/{len(todo)}] {label_for(job['item'])}: {status} ({time.time() - job['start']:.0f} s)",
+            job["tmp"].unlink(missing_ok=True)
+        if running:
+            print(f"interrupted: stopped {len(running)} running Julia processes and removed their partial outputs",
                   flush=True)
-        new_limits = read_limits(jobs, big_jobs)
-        if new_limits != (jobs, big_jobs):
-            jobs, big_jobs = new_limits
-            print(f"limits now jobs={jobs}, big-jobs={big_jobs}", flush=True)
-        while len(running) < jobs:
-            n_big = sum(is_big(j["item"]) for j in running)
-            if big_queue and n_big < big_jobs:
-                item = big_queue.pop(0)
-            elif small_queue:
-                item = small_queue.pop(0)
-            else:
-                break
-            if path_for(item).exists():
-                n_skipped += 1
-                print(f"skip {label_for(item)}: artifact already exists", flush=True)
-                continue
-            launch(item)
-        time.sleep(2)
     print(f"finished: {len(todo) - len(failed) - n_skipped} ok, {n_skipped} skipped, {len(failed)} failed",
           flush=True)
     for item in failed:

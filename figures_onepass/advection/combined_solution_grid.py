@@ -208,17 +208,17 @@ def write_table(mp_results: list[dict], path: Path) -> None:
     print(f"Saved LaTeX table to {path}")
 
 
-def run_mp(beta: float, idx: int) -> dict:
-    if not mp_sweep._cache_path(beta, idx).exists():
-        mp_sweep.train_one_beta(beta, idx)
+def load_mp(beta: float, idx: int) -> dict:
+    path = mp_sweep._cache_path(beta, idx)
+    if not path.exists():
+        raise FileNotFoundError(f"missing artifact {path}; run: python run_experiments.py adv-ours")
     return mp_sweep.load_cached(beta, idx)
 
 
 def main(betas: list[float] = BETAS) -> None:
-    # idx=6369 (not the sweep's own default of -1): one fixed illustrative trajectory; run_mp
-    # trains it only when its cached artifact is missing.
+    # idx=6369 (not the sweep's own default of -1): one fixed illustrative trajectory.
     idx = 6369
-    mp_results = [run_mp(beta, idx) for beta in betas]
+    mp_results = [load_mp(beta, idx) for beta in betas]
     make_combined_grid(mp_results, OUTPUT_PDF)
     write_table(mp_results, OUTPUT_TABLE)
 
