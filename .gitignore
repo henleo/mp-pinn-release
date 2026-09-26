@@ -1,0 +1,17 @@
+# downloaded data and experiment outputs
+data/
+artifacts/
+# figure outputs
+figures_onepass/**/*.pdf
+figures_onepass/**/*.png
+figures_onepass/**/*_table.tex
+figures_onepass/**/*.log
+figures_onepass/**/*.log.tmp
+figures_onepass/**/*_summary.json
+figures_onepass/**/training_inference_time_steady_state.csv
+# environments
+.venv/
+__pycache__/
+# message-passing debug log, OS metadata
+MSG_DEBUG.log
+.DS_Store
