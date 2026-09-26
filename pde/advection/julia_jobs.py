@@ -101,11 +101,14 @@ def run_jobs(todo: Sequence, *, path_for: Callable[[object], Path], command_for:
             time.sleep(2)
     finally:
         # Only non-empty when interrupted: stop the Julia runs started here, remove their partial outputs.
+        # Julia can hang on SIGTERM after printing its backtrace, so whatever still runs after a shared
+        # grace period is killed.
         for job in running:
             job["proc"].terminate()
+        deadline = time.time() + 10
         for job in running:
             try:
-                job["proc"].wait(timeout=30)
+                job["proc"].wait(timeout=max(0.1, deadline - time.time()))
             except subprocess.TimeoutExpired:
                 job["proc"].kill()
                 job["proc"].wait()

@@ -97,7 +97,7 @@ python run_experiments.py figures
 | `diff-wide` | our method with H = 2, 3, 4 hidden units, reaction-diffusion | 132 |
 | `diff-gauss` | our method on a Gaussian initial condition, reaction-diffusion (no data needed) | 16 |
 | `timing` | steady-state inference times, written to `figures_onepass/*/training_inference_time_steady_state.csv` | 3 |
-| `figures` | every figure script and the main results table (needs all steps above, including `timing`) | 22 |
+| `figures` | every figure script and the main results table (checks first that all steps above, including `timing`, are complete) | 22 |
 
 `python run_experiments.py <step> --dry-run` prints the command of every run of a step that is
 still missing, without running anything. The driver runs Julia single-threaded

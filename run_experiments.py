@@ -259,6 +259,19 @@ FIGURE_SCRIPTS = sorted((REPO_ROOT / "figures_onepass" / "advection").glob("*.py
     [REPO_ROOT / "figures_onepass" / "main_results_table.py"]
 
 
+def missing_outputs() -> dict[str, int]:
+    """Number of missing outputs per step, for the steps whose outputs the figure scripts read."""
+    missing = {}
+    refs = [reacdiff_reference._cache_path(nu, rho, i) for nu, rho in DIFF_CELLS for i in DIFF_IDXS] + \
+        [reacdiff_reference._gauss_cache_path(nu, rho) for nu, rho in DIFF_CELLS]
+    missing["references"] = sum(not p.exists() for p in refs)
+    for name, runs in julia_steps().items():
+        missing[name] = sum(not path.exists() for _, path, _, _ in runs)
+    missing["timing"] = sum(not (REPO_ROOT / "figures_onepass" / d / "training_inference_time_steady_state.csv").exists()
+                            for d in ("advection", "diffusion"))
+    return {step: n for step, n in missing.items() if n}
+
+
 def figures(args) -> None:
     # The *_ALL_PANELS switches also write the additional panel sets (calibration_comparison.pdf,
     # variance_consistency.pdf, space_analysis_all_panels.pdf) next to the main figures. Every
@@ -268,6 +281,11 @@ def figures(args) -> None:
     for key in SUBSET_SWITCHES:   # switches that make single scripts plot only a subset of the runs
         env.pop(key, None)
     print(f"== figures: {len(FIGURE_SCRIPTS)} scripts", flush=True)
+    missing = missing_outputs()
+    if missing and not args.dry_run:
+        raise SystemExit("figures: outputs of earlier steps are missing (" +
+                         ", ".join(f"{step}: {n}" for step, n in missing.items()) +
+                         "); run first: python run_experiments.py " + " ".join(missing))
     failed = []
     for script in FIGURE_SCRIPTS:
         print(f"  {script.relative_to(REPO_ROOT)}", flush=True)
