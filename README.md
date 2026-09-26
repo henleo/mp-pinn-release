@@ -1,8 +1,9 @@
 # Bayesian physics-informed neural networks via message passing
 
 Code to reproduce every figure in `figures_onepass/advection` (1D advection) and
-`figures_onepass/diffusion` (1D Fisher-KPP reaction-diffusion) from scratch: the message passing
-method ("Ours"), the HMC, VI and gradient-descent baselines, the ablations, and the figure scripts.
+`figures_onepass/diffusion` (1D Fisher-KPP reaction-diffusion), and the main results table
+(`figures_onepass/main_results_table.py`), from scratch: the message passing method ("Ours"), the
+HMC, VI and gradient-descent baselines, the ablations, and the figure and table scripts.
 
 The models and inference code are written in Julia (`lib/`, `pde/`). The data download, the
 experiment driver and the figure scripts are written in Python.
@@ -49,7 +50,7 @@ python pde/download_pdebench_subset.py reacdiff     # or only the 16 reaction-di
 
 ## Running the experiments
 
-`run_experiments.py` runs every experiment and then every figure script:
+`run_experiments.py` runs every experiment and then every figure and table script:
 
 ```bash
 python run_experiments.py all --jobs 4 --big-jobs 2
@@ -88,7 +89,7 @@ python run_experiments.py figures
 | `diff-wide` | our method with H = 2, 3, 4 hidden units, reaction-diffusion | 132 |
 | `diff-gauss` | our method on a Gaussian initial condition, reaction-diffusion (no data needed) | 16 |
 | `timing` | steady-state inference times, written to `figures_onepass/*/training_inference_time_steady_state.csv` | 3 |
-| `figures` | every figure script (needs all steps above, including `timing`) | 20 |
+| `figures` | every figure script and the main results table (needs all steps above, including `timing`) | 22 |
 
 `python run_experiments.py <step> --dry-run` prints the command of every run of a step that is
 still missing, without running anything. The driver runs Julia single-threaded
@@ -114,6 +115,7 @@ MPLBACKEND=Agg python figures_onepass/advection/combined_solution_grid.py
 | `combined_solution_grid_gaussian.py` (reaction-diffusion) | the same for a Gaussian initial condition |
 | `dataset_grid.py` (reaction-diffusion) | reference solution vs. our predictive mean on all 16 (ν, ρ) settings |
 | `mp_vs_gd_scatter_grid.py` | MSE and PDE residual, ours vs. the gradient-descent baseline |
+| `mp_vs_gd_scatter_grid_mse.py` (advection) | the MSE over all points of panel (a) of that figure (printed only) |
 | `calibration_comparison.py` | calibration and uncertainty structure, ours vs. HMC and VI (`calibration_variance.pdf`) |
 | `posterior_recovery_comparison.py` | posterior means and standard deviations, pairwise between ours, HMC and VI |
 | `posterior_fit_metrics.py` | posterior fit to the HMC reference |
@@ -122,6 +124,7 @@ MPLBACKEND=Agg python figures_onepass/advection/combined_solution_grid.py
 | `wider_model.py` | width ablation (H = 1 to 4 hidden units) |
 | `subgraph_ablation_plot.py` (advection) | prior-only / initial-condition-only / residual-only subgraphs vs. the full model (`space_analysis.pdf`) |
 | `mp_pinn_epsilon_dependence.py` (advection) | dependence on the PDE noise scale ε (`mse_residual_vs_epsilon.pdf`) |
+| `figures_onepass/main_results_table.py` | main results table: RMSE, 90 % coverage and CRPS of all methods on both PDEs (`main_results_table.tex`) |
 
 `python run_experiments.py figures` also sets `CALIBRATION_ALL_PANELS=1` and `SUBGRAPH_ALL_PANELS=1`,
 which make the calibration and ablation scripts write their additional panel sets

@@ -27,7 +27,8 @@ Steps, in the order `all` runs them:
   diff-gauss    one-pass message passing on the Gaussian-bump initial condition (no data needed)
   timing        steady-state inference re-timing -> figures_onepass/*/training_inference_time_steady_state.csv
                 (after all training steps, on an otherwise idle machine)
-  figures       runs every figure script in figures_onepass/advection and figures_onepass/diffusion
+  figures       runs every figure script in figures_onepass/advection and figures_onepass/diffusion,
+                then the main results table (figures_onepass/main_results_table.py)
 
 Usage: python run_experiments.py <step> [<step> ...] [--jobs N] [--big-jobs M] [--dry-run]
        python run_experiments.py all --jobs 4 --big-jobs 2
@@ -228,8 +229,11 @@ def timing_counts(path: Path) -> dict[str, int]:
     return {fam: families.count(fam) for fam in ("onepass", "vi", "hmc")}
 
 
+# Alphabetical order runs mp_vs_gd_scatter_grid.py before mp_vs_gd_scatter_grid_mse.py, which compares
+# its numbers with that figure's PDF; the main results table reads the same runs as the figures.
 FIGURE_SCRIPTS = sorted((REPO_ROOT / "figures_onepass" / "advection").glob("*.py")) + \
-    sorted((REPO_ROOT / "figures_onepass" / "diffusion").glob("*.py"))
+    sorted((REPO_ROOT / "figures_onepass" / "diffusion").glob("*.py")) + \
+    [REPO_ROOT / "figures_onepass" / "main_results_table.py"]
 
 
 def figures(args) -> None:
